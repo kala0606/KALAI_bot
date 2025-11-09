@@ -1,8 +1,9 @@
 import "dotenv/config";
 
-import { Client, GatewayIntentBits } from "discord.js";
+import { Client, GatewayIntentBits, AttachmentBuilder } from "discord.js";
 import OpenAI from "openai";
 import fs from "fs";
+import { generateTimeImage, cleanupOldImages } from "./generateTimeImage.js";
 
 const systemPrompt = fs.readFileSync("./kalai_system_prompt.txt", "utf-8");
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
@@ -14,6 +15,9 @@ const client = new Client({
 
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 const userMemory = new Map();
+
+// Cleanup old images every hour
+setInterval(cleanupOldImages, 60 * 60 * 1000);
 
 client.once("ready", () => {
   console.log(`✨ KALAI is now online as ${client.user.tag}`);
@@ -32,6 +36,62 @@ client.on("messageCreate", async (message) => {
   const userId = message.author.id;
   const prevMessages = userMemory.get(userId) || [];
   const userMsg = message.content.replace(/<@!?(\d+)>/, "").trim();
+
+  // Detect birth time in HH:MM format
+  const timeRegex = /\b([0-1]?[0-9]|2[0-3]):([0-5][0-9])\b/;
+  const timeMatch = userMsg.match(timeRegex);
+  
+  // Check if message is asking for a birth time visualization
+  const isBirthTimeRequest = timeMatch && (
+    userMsg.toLowerCase().includes('birth') ||
+    userMsg.toLowerCase().includes('born') ||
+    userMsg.toLowerCase().includes('ceremony') ||
+    userMsg.toLowerCase().includes('timekeeper') ||
+    userMsg.toLowerCase().includes('generate') ||
+    userMsg.toLowerCase().includes('show') ||
+    userMsg.toLowerCase().includes('visualize') ||
+    userMsg.toLowerCase().includes('my time')
+  );
+
+  if (isBirthTimeRequest) {
+    const birthTime = timeMatch[0];
+    
+    try {
+      await message.channel.sendTyping();
+      
+      // Generate the time image
+      console.log(`🎨 Generating time image for ${birthTime}...`);
+      const imagePath = await generateTimeImage(birthTime);
+      
+      // Create Discord attachment
+      const attachment = new AttachmentBuilder(imagePath, {
+        name: `birth_time_${birthTime.replace(':', '-')}.png`
+      });
+      
+      // Send the image with a mystical message
+      await message.reply({
+        content: `🕰️ **${birthTime}** — Time crystallized into form.\n\nYour birth hour, rendered through the eternal flow of कल.`,
+        files: [attachment]
+      });
+      
+      console.log(`✨ Sent time image for ${birthTime} to user ${userId}`);
+      
+      // Clean up the file after sending
+      setTimeout(() => {
+        if (fs.existsSync(imagePath)) {
+          fs.unlinkSync(imagePath);
+          console.log(`🧹 Cleaned up image: ${imagePath}`);
+        }
+      }, 5000);
+      
+      return; // Don't process through OpenAI
+      
+    } catch (error) {
+      console.error('Error generating time image:', error);
+      await message.reply("⏳ The temporal threads are tangled... I cannot render your time at this moment. Try again soon.");
+      return;
+    }
+  }
 
   const messages = [
     { role: "system", content: systemPrompt },

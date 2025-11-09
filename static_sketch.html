@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: white;
+      }
+      canvas {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      // Get time from URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const birthTime = urlParams.get('time') || '12:00';
+      const [inputHours, inputMinutes] = birthTime.split(':').map(Number);
+
+      // Random seed generation
+      const rand_seed = (size) =>
+        [...Array(size)]
+          .map(() => Math.floor(Math.random() * 16).toString(16))
+          .join("");
+      var tempHash = "0x" + rand_seed(64);
+
+      tokenData = {
+        hash: tempHash,
+        tokenId: "123000456",
+      };
+
+      let hash = tokenData.hash;
+      let seed = parseInt(tokenData.hash.slice(0, 16), 16);
+
+      class Random {
+        constructor() {
+          this.useA = false;
+          let sfc32 = function (uint128Hex) {
+            let a = parseInt(uint128Hex.substr(0, 8), 16);
+            let b = parseInt(uint128Hex.substr(8, 8), 16);
+            let c = parseInt(uint128Hex.substr(16, 8), 16);
+            let d = parseInt(uint128Hex.substr(24, 8), 16);
+            return function () {
+              a |= 0; b |= 0; c |= 0; d |= 0;
+              let t = (((a + b) | 0) + d) | 0;
+              d = (d + 1) | 0;
+              a = b ^ (b >>> 9);
+              b = (c + (c << 3)) | 0;
+              c = (c << 21) | (c >>> 11);
+              c = (c + t) | 0;
+              return (t >>> 0) / 4294967296;
+            };
+          };
+          this.prngA = new sfc32(tokenData.hash.substr(2, 32));
+          this.prngB = new sfc32(tokenData.hash.substr(34, 32));
+          for (let i = 0; i < 1e6; i += 2) {
+            this.prngA();
+            this.prngB();
+          }
+        }
+        random_dec() {
+          this.useA = !this.useA;
+          return this.useA ? this.prngA() : this.prngB();
+        }
+        random_num(a, b) {
+          return a + (b - a) * this.random_dec();
+        }
+        random_int(a, b) {
+          return Math.floor(this.random_num(a, b + 1));
+        }
+        random_bool(p) {
+          return this.random_dec() < p;
+        }
+        random_choice(list) {
+          return list[this.random_int(0, list.length - 1)];
+        }
+      }
+
+      let R = new Random(seed);
+
+      var DEFAULT_SIZE = 1000;
+      var WIDTH = 1000;
+      var HEIGHT = 1000;
+      var DIM = Math.min(WIDTH, HEIGHT);
+      var M = DIM / DEFAULT_SIZE;
+
+      var rows = [];
+      let bcol, scol;
+      let hr;
+      let hours = inputHours;
+      let minutes = inputMinutes;
+      let seconds = 0;
+
+      let r1, r2;
+
+      // Boid class
+      class Boid {
+        constructor(j) {
+          this.position = createVector(random(WIDTH), 175);
+          this.velocity = createVector(1, 0);
+          this.ran_velocity = createVector(1, 0);
+          this.velocity.setMag(random(-1 * M, 1 * M));
+          this.acceleration = createVector();
+          this.maxForce = 0.2;
+          this.maxSpeed = 1 * M;
+          this.j = j;
+
+          this.rs = R.random_num(0, 1);
+          this.rsv = R.random_num(1, 2);
+          this.rsvb = R.random_num(10, 100);
+        }
+
+        edges() {
+          if (this.position.x > WIDTH - 20 * M) {
+            this.position.x = 0 + 20 * M;
+          } else if (this.position.x <= 0 + 20 * M) {
+            this.position.x = WIDTH - 20 * M;
+          }
+          if (this.position.y > DIM - 20 * M) {
+            this.position.y = 0;
+          } else if (this.position.y < 0 + 20 * M) {
+            this.position.y = HEIGHT - 20 * M;
+          }
+        }
+
+        flock(boids) {}
+
+        update() {
+          this.position.add(this.velocity);
+          this.velocity.add(this.acceleration);
+          this.velocity.limit(this.maxSpeed);
+        }
+
+        show() {
+          if (this.rs <= 0.9) var fsw = this.rsv;
+          else var fsw = this.rsvb;
+
+          noStroke();
+          fill(scol);
+          push();
+          translate(this.position.x, this.j * (HEIGHT / hr) + (HEIGHT / hr) / 2);
+          var r = map(
+            noise(this.position.x / (30 * M), this.position.y / (30 * M), seconds / 100),
+            0,
+            1,
+            -PI / 30,
+            PI / 30
+          );
+          rotate(r);
+
+          // Draw rect centered at (0,0) after translation, just like the big rects
+          rect(0, 0, 3 * M + noise(this.j / (100 * M) + this.position.x / (100 * M)) * fsw * M, HEIGHT / hr - 15 * M);
+          pop();
+        }
+      }
+
+      // Row class
+      class Row {
+        constructor(j) {
+          this.flock = [];
+          this.j = j;
+          this.setup();
+        }
+
+        setup() {
+          this.flock = [];
+          for (let i = 0; i < minutes; i++) {
+            this.flock.push(new Boid(this.j));
+          }
+        }
+
+        addmin() {
+          this.flock.push(new Boid(this.j));
+        }
+
+        anim() {
+          for (let boid of this.flock) {
+            boid.edges();
+            boid.flock(this.flock);
+            boid.update();
+            boid.show();
+          }
+        }
+
+        update() {}
+      }
+
+      function setHour() {
+        if (hours > 12) {
+          hr = hours - 12;
+          bcol = color(255);
+          scol = color(0);
+        } else if (hours == 12) {
+          hr = hours;
+          bcol = color(255);
+          scol = color(0);
+        } else if (hours == 0) {
+          hr = 12;
+          bcol = color(0);
+          scol = color(255);
+        } else {
+          hr = hours;
+          bcol = color(0);
+          scol = color(255);
+        }
+
+        rows = [];
+
+        for (let j = 0; j < hr; j++) {
+          rows.push(new Row(j));
+        }
+      }
+
+      function setup() {
+        // Use 2D canvas instead of WEBGL for better headless compatibility
+        createCanvas(WIDTH, HEIGHT);
+        rectMode(CENTER);
+
+        r1 = R.random_num(0.1, 4);
+        r2 = R.random_num(1, 8);
+
+        setHour();
+        
+        // Draw immediately
+        redraw();
+        
+        // Signal to Puppeteer that rendering is complete
+        window.renderComplete = true;
+        console.log('Render complete for time:', birthTime);
+      }
+
+      function draw() {
+        translate(WIDTH/2, HEIGHT/2);
+        scale(0.75);
+        translate(-WIDTH/2, -HEIGHT/2);
+        background(bcol);
+
+        // Draw big rectangles for exact hours (when minutes === 0)
+        if (minutes === 0) {
+          noStroke();
+          fill(scol);
+          for (let j = 0; j < hr; j++) {
+            rect(WIDTH / 2, j * HEIGHT / hr + HEIGHT / hr / 2, WIDTH, HEIGHT / hr - 15 * M);
+          }
+        }
+        
+        // Draw the boids/timelines
+        for (let j = 0; j < hr; j++) {
+          rows[j].anim();
+        }
+        
+        // Only draw once
+        noLoop();
+      }
+    </script>
+  </body>
+</html>
