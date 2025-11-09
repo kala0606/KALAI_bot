@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y \
     chromium \
     chromium-sandbox \
     fonts-liberation \
+    fonts-noto-color-emoji \
     libappindicator3-1 \
     libasound2 \
     libatk-bridge2.0-0 \
@@ -18,6 +19,10 @@ RUN apt-get update && apt-get install -y \
     libxcomposite1 \
     libxdamage1 \
     libxrandr2 \
+    libxss1 \
+    libxtst6 \
+    libgbm1 \
+    ca-certificates \
     xdg-utils \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
