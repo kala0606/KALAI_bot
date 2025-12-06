@@ -50,7 +50,17 @@ client.on("messageCreate", async (message) => {
     userMsg.toLowerCase().includes('generate') ||
     userMsg.toLowerCase().includes('show') ||
     userMsg.toLowerCase().includes('visualize') ||
-    userMsg.toLowerCase().includes('my time')
+    userMsg.toLowerCase().includes('visualise') ||
+    userMsg.toLowerCase().includes('my time') ||
+    userMsg.toLowerCase().includes('timeline') ||
+    userMsg.toLowerCase().includes('time line') ||
+    userMsg.toLowerCase().includes('image') ||
+    userMsg.toLowerCase().includes('picture') ||
+    userMsg.toLowerCase().includes('create') ||
+    userMsg.toLowerCase().includes('make') ||
+    userMsg.toLowerCase().includes('draw') ||
+    userMsg.toLowerCase().includes('render') ||
+    userMsg.toLowerCase().includes('display')
   );
 
   if (isBirthTimeRequest) {
