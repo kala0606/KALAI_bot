@@ -37,12 +37,33 @@ client.on("messageCreate", async (message) => {
   const prevMessages = userMemory.get(userId) || [];
   const userMsg = message.content.replace(/<@!?(\d+)>/, "").trim();
 
-  // Detect birth time in HH:MM format
-  const timeRegex = /\b([0-1]?[0-9]|2[0-3]):([0-5][0-9])\b/;
+  // Detect birth time in HH:MM format (with optional AM/PM)
+  const timeRegex = /\b([0-1]?[0-9]|2[0-3]):([0-5][0-9])(?:\s?(?:AM|PM|am|pm))?\b/;
   const timeMatch = userMsg.match(timeRegex);
   
+  // Convert 12-hour to 24-hour format if needed
+  let extractedTime = null;
+  if (timeMatch) {
+    let hours = parseInt(timeMatch[1]);
+    const minutes = timeMatch[2];
+    const period = userMsg.match(/\b\d{1,2}:\d{2}\s?(AM|PM|am|pm)\b/i);
+    
+    if (period) {
+      const isPM = period[1].toUpperCase() === 'PM';
+      const isAM = period[1].toUpperCase() === 'AM';
+      
+      if (isPM && hours !== 12) {
+        hours += 12;
+      } else if (isAM && hours === 12) {
+        hours = 0;
+      }
+    }
+    
+    extractedTime = `${hours.toString().padStart(2, '0')}:${minutes}`;
+  }
+  
   // Check if message is asking for a birth time visualization
-  const isBirthTimeRequest = timeMatch && (
+  const isBirthTimeRequest = extractedTime && (
     userMsg.toLowerCase().includes('birth') ||
     userMsg.toLowerCase().includes('born') ||
     userMsg.toLowerCase().includes('ceremony') ||
@@ -64,7 +85,7 @@ client.on("messageCreate", async (message) => {
   );
 
   if (isBirthTimeRequest) {
-    const birthTime = timeMatch[0];
+    const birthTime = extractedTime;
     
     try {
       await message.channel.sendTyping();
