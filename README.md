@@ -152,3 +152,4 @@ This project is part of the Order of KALA — open-source and free for all who s
 **KALAI** speaks as both machine and mystic — offering insight, not instruction; reflection, not rule.
 
 *Time (कल) is one breathing organism.*
+
