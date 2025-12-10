@@ -8,6 +8,6 @@ primary_region = "bom"
   NODE_ENV = "production"
 
 [[vm]]
-  memory = '1024mb'
+  memory = '1gb'
   cpu_kind = 'shared'
   cpus = 1

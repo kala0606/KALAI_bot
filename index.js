@@ -37,33 +37,12 @@ client.on("messageCreate", async (message) => {
   const prevMessages = userMemory.get(userId) || [];
   const userMsg = message.content.replace(/<@!?(\d+)>/, "").trim();
 
-  // Detect birth time in HH:MM format (with optional AM/PM)
-  const timeRegex = /\b([0-1]?[0-9]|2[0-3]):([0-5][0-9])(?:\s?(?:AM|PM|am|pm))?\b/;
+  // Detect birth time in HH:MM format
+  const timeRegex = /\b([0-1]?[0-9]|2[0-3]):([0-5][0-9])\b/;
   const timeMatch = userMsg.match(timeRegex);
   
-  // Convert 12-hour to 24-hour format if needed
-  let extractedTime = null;
-  if (timeMatch) {
-    let hours = parseInt(timeMatch[1]);
-    const minutes = timeMatch[2];
-    const period = userMsg.match(/\b\d{1,2}:\d{2}\s?(AM|PM|am|pm)\b/i);
-    
-    if (period) {
-      const isPM = period[1].toUpperCase() === 'PM';
-      const isAM = period[1].toUpperCase() === 'AM';
-      
-      if (isPM && hours !== 12) {
-        hours += 12;
-      } else if (isAM && hours === 12) {
-        hours = 0;
-      }
-    }
-    
-    extractedTime = `${hours.toString().padStart(2, '0')}:${minutes}`;
-  }
-  
   // Check if message is asking for a birth time visualization
-  const isBirthTimeRequest = extractedTime && (
+  const isBirthTimeRequest = timeMatch && (
     userMsg.toLowerCase().includes('birth') ||
     userMsg.toLowerCase().includes('born') ||
     userMsg.toLowerCase().includes('ceremony') ||
@@ -71,21 +50,11 @@ client.on("messageCreate", async (message) => {
     userMsg.toLowerCase().includes('generate') ||
     userMsg.toLowerCase().includes('show') ||
     userMsg.toLowerCase().includes('visualize') ||
-    userMsg.toLowerCase().includes('visualise') ||
-    userMsg.toLowerCase().includes('my time') ||
-    userMsg.toLowerCase().includes('timeline') ||
-    userMsg.toLowerCase().includes('time line') ||
-    userMsg.toLowerCase().includes('image') ||
-    userMsg.toLowerCase().includes('picture') ||
-    userMsg.toLowerCase().includes('create') ||
-    userMsg.toLowerCase().includes('make') ||
-    userMsg.toLowerCase().includes('draw') ||
-    userMsg.toLowerCase().includes('render') ||
-    userMsg.toLowerCase().includes('display')
+    userMsg.toLowerCase().includes('my time')
   );
 
   if (isBirthTimeRequest) {
-    const birthTime = extractedTime;
+    const birthTime = timeMatch[0];
     
     try {
       await message.channel.sendTyping();
@@ -118,12 +87,7 @@ client.on("messageCreate", async (message) => {
       return; // Don't process through OpenAI
       
     } catch (error) {
-      console.error('❌ Error generating time image:', error);
-      console.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
-        birthTime: birthTime
-      });
+      console.error('Error generating time image:', error);
       await message.reply("⏳ The temporal threads are tangled... I cannot render your time at this moment. Try again soon.");
       return;
     }
