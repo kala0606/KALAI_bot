@@ -118,7 +118,12 @@ client.on("messageCreate", async (message) => {
       return; // Don't process through OpenAI
       
     } catch (error) {
-      console.error('Error generating time image:', error);
+      console.error('❌ Error generating time image:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        birthTime: birthTime
+      });
       await message.reply("⏳ The temporal threads are tangled... I cannot render your time at this moment. Try again soon.");
       return;
     }

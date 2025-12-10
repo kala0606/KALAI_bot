@@ -31,9 +31,9 @@ export async function generateTimeImage(birthTime) {
   let browser;
   try {
     // Launch headless browser with flags for containerized environments
-    browser = await puppeteer.launch({
+    // Only set executablePath if explicitly provided via env var, otherwise let Puppeteer use its bundled Chromium
+    const launchOptions = {
       headless: 'new',
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -50,12 +50,24 @@ export async function generateTimeImage(birthTime) {
         '--mute-audio',
         '--no-first-run',
         '--safebrowsing-disable-auto-update',
-        '--single-process',
         '--disable-accelerated-2d-canvas'
       ]
-    });
+    };
+
+    // Only set executablePath if explicitly provided (for Docker/production)
+    // On macOS/Windows, Puppeteer will use its bundled Chromium
+    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+      launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    }
+
+    console.log('🚀 Launching Puppeteer...');
+    browser = await puppeteer.launch(launchOptions);
 
     const page = await browser.newPage();
+    
+    // Enable console logging from the page for debugging
+    page.on('console', msg => console.log('🖼️  Browser console:', msg.text()));
+    page.on('pageerror', error => console.error('🖼️  Browser error:', error));
     
     // Set viewport to match canvas size
     await page.setViewport({
@@ -66,16 +78,18 @@ export async function generateTimeImage(birthTime) {
 
     // Load the static sketch HTML with time parameter
     const htmlPath = `file://${path.join(__dirname, 'static_sketch.html')}?time=${encodeURIComponent(birthTime)}`;
+    console.log('📄 Loading HTML:', htmlPath);
     await page.goto(htmlPath, {
       waitUntil: 'networkidle0',
-      timeout: 30000
+      timeout: 45000 // Increased timeout for slower systems
     });
 
+    console.log('⏳ Waiting for render to complete...');
     // Wait for p5.js to load and render
     await page.waitForFunction(() => {
       return window.renderComplete === true && 
              document.querySelector('canvas') !== null;
-    }, { timeout: 15000 });
+    }, { timeout: 30000 }); // Increased timeout
 
     // Give a bit more time for final paint
     await new Promise(resolve => setTimeout(resolve, 500));

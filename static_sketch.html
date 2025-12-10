@@ -228,12 +228,8 @@
 
         setHour();
         
-        // Draw immediately
-        redraw();
-        
-        // Signal to Puppeteer that rendering is complete
-        window.renderComplete = true;
-        console.log('Render complete for time:', birthTime);
+        console.log('Setup complete for time:', birthTime);
+        console.log('Hours:', hours, 'Minutes:', minutes, 'Display hours:', hr);
       }
 
       function draw() {
@@ -258,6 +254,12 @@
         
         // Only draw once
         noLoop();
+        
+        // Signal to Puppeteer that rendering is complete (after first draw)
+        if (!window.renderComplete) {
+          window.renderComplete = true;
+          console.log('✅ Render complete for time:', birthTime);
+        }
       }
     </script>
   </body>
